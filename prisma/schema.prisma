@@ -1,0 +1,272 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AdminRole {
+  SUPERADMIN
+}
+
+enum ProductBadge {
+  official
+  promo
+  bestseller
+}
+
+enum PaymentMethod {
+  fonepay
+  khalti
+}
+
+enum OrderStatus {
+  pending_verification
+  verified
+  rejected
+}
+
+enum DeliveryChannel {
+  email
+  chat
+  whatsapp
+  telegram
+  viber
+}
+
+enum ChatSender {
+  user
+  admin
+}
+
+enum ContactMessageStatus {
+  new
+  read
+  archived
+}
+
+enum ReferralWithdrawalStatus {
+  pending
+  completed
+  rejected
+}
+
+model Admin {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(SUPERADMIN)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model User {
+  id                     String                 @id @default(cuid())
+  name                   String
+  email                  String                 @unique
+  passwordHash           String?
+  phone                  String?
+  referralCode           String                 @unique
+  referredById           String?
+  referralBalance        Decimal                @default(0) @db.Decimal(10, 2)
+  defaultDeliveryChannel DeliveryChannel?
+  deliveryWhatsapp       String?
+  deliveryTelegram       String?
+  deliveryViber          String?
+  referredBy             User?                  @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals              User[]                 @relation("UserReferrals")
+  orders                 Order[]
+  chatMessages           ChatMessage[]
+  referralCommissions    ReferralCommission[]   @relation("ReferrerCommissions")
+  referralWithdrawals    ReferralWithdrawal[]
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  @@index([referredById])
+}
+
+model SignupVerification {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  codeHash     String
+  name         String
+  passwordHash String
+  phone        String?
+  referredById String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
+model PasswordResetVerification {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  codeHash  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  icon      String    @default("shopping-bag")
+  gradient  String    @default("from-gray-500 to-gray-700")
+  imageUrl  String?
+  mediaId   String?
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  media     Media?    @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Brand {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  gradient  String    @default("from-gray-600 to-gray-800")
+  imageUrl  String?
+  mediaId   String?
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  media     Media?    @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Media {
+  id         String     @id @default(cuid())
+  publicId   String     @unique
+  url        String
+  width      Int?
+  height     Int?
+  format     String?
+  bytes      Int?
+  folder     String     @default("ecommerce")
+  filename   String?
+  alt        String?
+  products   Product[]
+  categories Category[]
+  brands     Brand[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([createdAt])
+}
+
+model Product {
+  id            String        @id @default(cuid())
+  slug          String        @unique
+  name          String
+  description   String        @db.Text
+  price         Decimal       @db.Decimal(10, 2)
+  originalPrice Decimal?      @db.Decimal(10, 2)
+  currency      String        @default("NPR")
+  gradient      String        @default("from-gray-600 to-gray-800")
+  badge         ProductBadge?
+  denominations Json
+  isActive      Boolean       @default(true)
+  imageUrl      String?
+  mediaId       String?
+  brandId       String
+  categoryId    String
+  media         Media?        @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  brand         Brand         @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  category      Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([brandId])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model Order {
+  id                    String        @id @default(cuid())
+  userId                String
+  items                 Json
+  subtotal              Decimal       @db.Decimal(10, 2)
+  currency              String        @default("NPR")
+  paymentMethod         PaymentMethod
+  paymentScreenshotUrl  String
+  paymentReference      String?
+  deliveryChannel       DeliveryChannel @default(chat)
+  deliveryContact       String?
+  status                OrderStatus   @default(pending_verification)
+  adminNote             String?
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  referralCommission    ReferralCommission?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  verifiedAt            DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  userId    String
+  sender    ChatSender
+  body      String     @db.Text
+  adminId   String?
+  readAt    DateTime?
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, sender, readAt])
+}
+
+model ContactMessage {
+  id        String               @id @default(cuid())
+  name      String
+  email     String
+  subject   String?
+  message   String               @db.Text
+  status    ContactMessageStatus @default(new)
+  readAt    DateTime?
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ReferralCommission {
+  id             String   @id @default(cuid())
+  orderId        String   @unique
+  referrerId     String
+  referredUserId String
+  amount         Decimal  @db.Decimal(10, 2)
+  rate           Decimal  @db.Decimal(5, 4)
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  referrer       User     @relation("ReferrerCommissions", fields: [referrerId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@index([referrerId])
+  @@index([createdAt])
+}
+
+model ReferralWithdrawal {
+  id          String                   @id @default(cuid())
+  userId      String
+  amount      Decimal                  @db.Decimal(10, 2)
+  status      ReferralWithdrawalStatus @default(pending)
+  payoutNote  String?
+  adminNote   String?
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime                 @default(now())
+  processedAt DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
