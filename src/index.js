@@ -33,7 +33,12 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 4000;
 
-const corsOrigins = process.env.CORS_ORIGIN?.split(",") || ["http://localhost:3000"];
+const corsOrigins = (
+  process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()).filter(Boolean) || [
+    "http://localhost:3000",
+    "http://82.25.95.230:3001",
+  ]
+);
 
 if (!process.env.JWT_SECRET) {
   console.warn("Warning: JWT_SECRET is not set in .env");
