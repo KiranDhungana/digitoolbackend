@@ -33,28 +33,31 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 4000;
 
-const corsOrigins = (
-  process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()).filter(Boolean) || [
-    "http://localhost:3000",
-    "http://82.25.95.230:3001",
-  ]
-);
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://82.25.95.230:3001",
+];
 
 if (!process.env.JWT_SECRET) {
   console.warn("Warning: JWT_SECRET is not set in .env");
 }
 
+console.log("CORS allowed origins:", ALLOWED_ORIGINS.join(", "));
+
 app.use(
   cors({
-    origin: corsOrigins,
+    origin: ALLOWED_ORIGINS,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 app.use(express.json());
 
 const io = new Server(server, {
   cors: {
-    origin: corsOrigins,
+    origin: ALLOWED_ORIGINS,
     credentials: true,
   },
 });
