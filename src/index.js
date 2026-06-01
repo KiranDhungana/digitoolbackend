@@ -37,6 +37,7 @@ const ALLOWED_ORIGINS = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://82.25.95.230:3001",
+  "https://digitoolera.com",
 ];
 
 if (!process.env.JWT_SECRET) {
