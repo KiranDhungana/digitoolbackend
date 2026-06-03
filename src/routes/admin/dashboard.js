@@ -15,6 +15,9 @@ router.get("/stats", async (req, res, next) => {
       pendingOrders,
       unreadChats,
       newContactMessages,
+      blogDrafts,
+      blogPublished,
+      blogScheduled,
     ] = await Promise.all([
       prisma.product.count(),
       prisma.product.count({ where: { isActive: true } }),
@@ -31,6 +34,15 @@ router.get("/stats", async (req, res, next) => {
       prisma.contactMessage
         ? prisma.contactMessage.count({ where: { status: "new" } })
         : Promise.resolve(0),
+      prisma.blogPost
+        ? prisma.blogPost.count({ where: { status: "draft" } })
+        : Promise.resolve(0),
+      prisma.blogPost
+        ? prisma.blogPost.count({ where: { status: "published" } })
+        : Promise.resolve(0),
+      prisma.blogPost
+        ? prisma.blogPost.count({ where: { status: "scheduled" } })
+        : Promise.resolve(0),
     ]);
 
     res.json({
@@ -43,6 +55,9 @@ router.get("/stats", async (req, res, next) => {
       pendingOrders,
       unreadChats,
       newContactMessages,
+      blogDrafts,
+      blogPublished,
+      blogScheduled,
     });
   } catch (err) {
     next(err);

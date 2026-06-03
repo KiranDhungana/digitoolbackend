@@ -54,14 +54,21 @@ enum ReferralWithdrawalStatus {
   rejected
 }
 
+enum BlogPostStatus {
+  draft
+  scheduled
+  published
+}
+
 model Admin {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   passwordHash String
   name         String
-  role         AdminRole @default(SUPERADMIN)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  role         AdminRole  @default(SUPERADMIN)
+  blogPosts    BlogPost[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }
 
 model User {
@@ -269,4 +276,67 @@ model ReferralWithdrawal {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+}
+
+model BlogCategory {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  name        String
+  description String?
+  isActive    Boolean    @default(true)
+  sortOrder   Int        @default(0)
+  posts       BlogPost[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model BlogTag {
+  id        String         @id @default(cuid())
+  slug      String         @unique
+  name      String
+  posts     BlogPostTag[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model BlogPost {
+  id               String         @id @default(cuid())
+  slug             String         @unique
+  title            String
+  excerpt          String?        @db.Text
+  content          String         @db.Text
+  metaDescription  String?
+  focusKeyword     String?
+  status           BlogPostStatus @default(draft)
+  publishedAt      DateTime?
+  scheduledAt      DateTime?
+  canonicalUrl     String?
+  featuredImageUrl String?
+  featuredImageAlt String?
+  featuredMediaId  String?
+  headings         Json           @default("[]")
+  faq              Json           @default("[]")
+  authorId         String
+  categoryId       String?
+  author           Admin          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  category         BlogCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags             BlogPostTag[]
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([status])
+  @@index([publishedAt])
+  @@index([scheduledAt])
+  @@index([categoryId])
+  @@index([authorId])
+}
+
+model BlogPostTag {
+  postId String
+  tagId  String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    BlogTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
 }

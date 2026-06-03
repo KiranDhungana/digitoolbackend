@@ -8,6 +8,7 @@ const { authAdmin } = require("./middleware/auth");
 const { assertChatReady } = require("./services/chatService");
 const { disconnectPrisma } = require("./lib/prisma");
 const { setupChatSocket } = require("./socket/chat");
+const { startBlogPublisher } = require("./services/blogPublisher");
 
 const publicProducts = require("./routes/public/products");
 const publicSearch = require("./routes/public/search");
@@ -28,6 +29,11 @@ const adminOrders = require("./routes/admin/orders");
 const adminChat = require("./routes/admin/chat");
 const adminContact = require("./routes/admin/contact");
 const adminReferrals = require("./routes/admin/referrals");
+const adminBlogs = require("./routes/admin/blogs");
+const adminBlogCategories = require("./routes/admin/blogCategories");
+const adminBlogTags = require("./routes/admin/blogTags");
+const adminBlogAi = require("./routes/admin/blogAi");
+const publicBlogs = require("./routes/public/blogs");
 
 const app = express();
 const server = http.createServer(app);
@@ -90,6 +96,7 @@ app.use("/api/orders", publicOrders);
 app.use("/api/chat", publicChat);
 app.use("/api/contact", publicContact);
 app.use("/api/referrals", publicReferrals);
+app.use("/api/blogs", publicBlogs);
 
 app.use("/api/admin/auth", adminAuth);
 app.use("/api/admin/dashboard", authAdmin, adminDashboard);
@@ -101,6 +108,10 @@ app.use("/api/admin/orders", authAdmin, adminOrders);
 app.use("/api/admin/chat", authAdmin, adminChat);
 app.use("/api/admin/contact", authAdmin, adminContact);
 app.use("/api/admin/referrals", authAdmin, adminReferrals);
+app.use("/api/admin/blogs", authAdmin, adminBlogs);
+app.use("/api/admin/blog-categories", authAdmin, adminBlogCategories);
+app.use("/api/admin/blog-tags", authAdmin, adminBlogTags);
+app.use("/api/admin/blog-ai", authAdmin, adminBlogAi);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
@@ -111,8 +122,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || "Internal server error" });
 });
 
+let blogPublisherTimer;
+
 server.listen(PORT, () => {
   console.log(`API running on http://localhost:${PORT}`);
+  blogPublisherTimer = startBlogPublisher();
   try {
     assertChatReady();
     console.log("Chat (Socket.IO + REST) is ready");
@@ -122,6 +136,7 @@ server.listen(PORT, () => {
 });
 
 function shutdown() {
+  if (blogPublisherTimer) clearInterval(blogPublisherTimer);
   server.close(() => {
     disconnectPrisma().finally(() => process.exit(0));
   });
